@@ -90,3 +90,48 @@ export const getSinglePost = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Failed to fetch post" });
   }
 };
+
+export const updatePost = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+    const userId = req.userId!;
+
+    const postId = parseInt(id!);
+    if (isNaN(postId)) {
+      return res.status(400).json({ error: "Invalid post ID" });
+    }
+
+    const post = await prisma.post.findUnique({
+      where: { id: postId },
+      select: { id: true, authorId: true },
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+    if (userId != post?.authorId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+    const updatedPost = await prisma.post.update({
+      where: { id: postId },
+      data: {
+        title,
+        content,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    res.json(updatedPost);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update post" });
+  }
+};
