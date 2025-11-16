@@ -2,6 +2,7 @@ import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import route from "./routes/auth.routes";
+import postRoutes from "./routes/post.routes";
 
 dotenv.config();
 
@@ -15,7 +16,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use("/api/auth", route); // ADD THIS
+app.use("/api/auth", route);
+// Posts routes
+app.use("/api/posts", postRoutes);
 
 //test route
 app.get("/", (req: Request, res: Response) => {
