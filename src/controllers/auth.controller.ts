@@ -26,7 +26,13 @@ export const signup = async (req: Request, res: Response) => {
 
     res.status(201).json({
       token,
-      user,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
     });
   } catch (error) {
     res.status(500).json({ error: "Server error" });
