@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import route from "./routes/auth.routes";
 
 dotenv.config();
 
@@ -12,6 +13,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Routes
+app.use("/api/auth", route); // ADD THIS
 
 //test route
 app.get("/", (req: Request, res: Response) => {
