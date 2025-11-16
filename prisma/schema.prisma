@@ -6,40 +6,47 @@ datasource db {
 generator client {
   provider = "prisma-client-js"
 }
+enum Role {
+  USER
+  ADMIN
+  AUTHOR
+  SUPER_ADMIN
+}
 
 model User {
   id       Int      @id @default(autoincrement())
   username String   @unique
   password String
   email    String   @unique
-  role     String
-  files    File[]
-  folders  Folder[]
+  role     Role     @default(USER)
+  posts    Post[]
+  comments Comment[]
 
   createdAt DateTime @default(now())
 }
 
-model Post{
-  id Int @id @default(autoincrement())
-}
-model File {
-  id         Int      @id @default(autoincrement())
-  name       String   // original filename
-  filename   String   @default("") // same as name for compatibility
-  size       String
-  path       String
-  userId     Int
-  user       User     @relation(fields: [userId], references: [id])
-  folderId   Int?
-  folder     Folder?  @relation(fields: [folderId], references: [id])
-  uploadedAt DateTime @default(now())
+model Post {
+  id        Int      @id @default(autoincrement())
+  title     String
+  content   String?  @db.Text
+  published Boolean  @default(false)
+  authorId  Int
+  user      User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments  Comment[]
+  createdAt DateTime @default(now())
 }
 
-model Folder {
+model Comment {
   id        Int      @id @default(autoincrement())
-  name      String
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  files     File[]
+  content   String   @db.Text
+
+  username  String?
+  email     String?
+
+  userId    Int?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  postId    Int
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
 }
