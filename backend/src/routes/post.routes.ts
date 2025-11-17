@@ -7,12 +7,12 @@ import {
   deletePost,
   togglePublish,
 } from "../controllers/post.controller";
-import { authenticateToken } from "../middleware/auth.middleware";
+import { authenticateToken, optionalAuth } from "../middleware/auth.middleware";
 
 const router = Router();
 
-// Public routes
-router.get("/", getAllPosts);
+// Public routes (optionally authenticated for CMS)
+router.get("/", optionalAuth, getAllPosts);
 router.get("/:id", getSinglePost);
 
 // Protected routes

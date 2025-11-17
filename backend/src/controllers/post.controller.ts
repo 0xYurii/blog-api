@@ -20,10 +20,27 @@ export const createPost = async (req: Request, res: Response) => {
             email: true,
           },
         },
+        _count: {
+          select: {
+            comments: true,
+          },
+        },
       },
     });
 
-    res.status(201).json(post);
+    // Transform response to match frontend expectations
+    const response = {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      published: post.published,
+      authorId: post.authorId,
+      createdAt: post.createdAt,
+      author: post.user,
+      _count: post._count,
+    };
+
+    res.status(201).json(response);
   } catch (error) {
     res.status(500).json({ error: "Failed to create post" });
   }
@@ -31,21 +48,41 @@ export const createPost = async (req: Request, res: Response) => {
 
 export const getAllPosts = async (req: Request, res: Response) => {
   try {
-    // Only return published posts for public
+    const userId = req.userId; // From auth middleware (if authenticated)
+
+    // If authenticated, return all posts; otherwise only published
     const posts = await prisma.post.findMany({
-      where: { published: true },
+      where: userId ? {} : { published: true },
       include: {
         user: {
           select: {
+            id: true,
             username: true,
+            email: true,
           },
         },
-        comments: true,
+        _count: {
+          select: {
+            comments: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    res.json(posts);
+    // Transform response to match frontend expectations
+    const response = posts.map((post) => ({
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      published: post.published,
+      authorId: post.authorId,
+      createdAt: post.createdAt,
+      author: post.user,
+      _count: post._count,
+    }));
+
+    res.json(response);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch posts" });
   }
@@ -73,10 +110,18 @@ export const getSinglePost = async (req: Request, res: Response) => {
         comments: {
           include: {
             user: {
-              select: { username: true },
+              select: { 
+                id: true,
+                username: true 
+              },
             },
           },
           orderBy: { createdAt: "desc" },
+        },
+        _count: {
+          select: {
+            comments: true,
+          },
         },
       },
     });
@@ -85,7 +130,20 @@ export const getSinglePost = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Post not found" });
     }
 
-    res.json(post);
+    // Transform response to match frontend expectations
+    const response = {
+      id: post.id,
+      title: post.title,
+      content: post.content,
+      published: post.published,
+      authorId: post.authorId,
+      createdAt: post.createdAt,
+      author: post.user,
+      comments: post.comments,
+      _count: post._count,
+    };
+
+    res.json(response);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch post" });
   }
@@ -127,10 +185,27 @@ export const updatePost = async (req: Request, res: Response) => {
             email: true,
           },
         },
+        _count: {
+          select: {
+            comments: true,
+          },
+        },
       },
     });
 
-    res.json(updatedPost);
+    // Transform response to match frontend expectations
+    const response = {
+      id: updatedPost.id,
+      title: updatedPost.title,
+      content: updatedPost.content,
+      published: updatedPost.published,
+      authorId: updatedPost.authorId,
+      createdAt: updatedPost.createdAt,
+      author: updatedPost.user,
+      _count: updatedPost._count,
+    };
+
+    res.json(response);
   } catch (error) {
     res.status(500).json({ error: "Failed to update post" });
   }
@@ -194,9 +269,35 @@ export const togglePublish = async (req: Request, res: Response) => {
     const updatedPost = await prisma.post.update({
       where: { id: postId },
       data: { published: !publishedPost.published },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            email: true,
+          },
+        },
+        _count: {
+          select: {
+            comments: true,
+          },
+        },
+      },
     });
 
-    res.json(updatedPost);
+    // Transform response to match frontend expectations
+    const response = {
+      id: updatedPost.id,
+      title: updatedPost.title,
+      content: updatedPost.content,
+      published: updatedPost.published,
+      authorId: updatedPost.authorId,
+      createdAt: updatedPost.createdAt,
+      author: updatedPost.user,
+      _count: updatedPost._count,
+    };
+
+    res.json(response);
   } catch (error) {
     res.status(500).json({ error: "Failed to toggle publish status" });
   }

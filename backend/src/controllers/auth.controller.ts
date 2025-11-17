@@ -75,3 +75,29 @@ export const login = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+export const getCurrentUser = async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId!; // From auth middleware
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch user profile" });
+  }
+};
+
