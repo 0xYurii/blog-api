@@ -54,6 +54,8 @@ npm run dev
 **Features:**
 - View all published posts
 - Read individual posts
+- User authentication (login/signup)
+- User profile page
 - Submit comments (anonymous or logged in)
 - Responsive design
 
@@ -70,6 +72,8 @@ npm run dev
 **Runs on:** http://localhost:5174/ (or next available port)
 
 **Features:**
+- User signup and authentication
+- User profile page with stats
 - Login with authentication
 - Create, edit, and delete posts
 - Publish/unpublish posts
