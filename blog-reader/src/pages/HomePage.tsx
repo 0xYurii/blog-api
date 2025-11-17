@@ -1,6 +1,7 @@
-// HomePage - Display all published blog posts
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+// HomePage - displays all published posts
+
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { getPosts } from '../services/api';
 import type { Post } from '../types';
 
@@ -8,7 +9,6 @@ const HomePage = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchPosts = async () => {
@@ -16,10 +16,8 @@ const HomePage = () => {
         setLoading(true);
         const data = await getPosts();
         setPosts(data);
-        setError(null);
       } catch (err) {
-        setError('Failed to load posts. Please try again later.');
-        console.error('Error fetching posts:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load posts');
       } finally {
         setLoading(false);
       }
@@ -28,63 +26,58 @@ const HomePage = () => {
     fetchPosts();
   }, []);
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const getExcerpt = (content: string | null, maxLength: number = 150) => {
-    if (!content) return 'No content available...';
-    if (content.length <= maxLength) return content;
-    return content.substring(0, maxLength) + '...';
-  };
-
   if (loading) {
-    return <div className="loading">Loading posts...</div>;
+    return (
+      <div className="container">
+        <div className="loading">Loading posts...</div>
+      </div>
+    );
   }
 
   if (error) {
     return (
       <div className="container">
-        <div className="error">{error}</div>
-      </div>
-    );
-  }
-
-  if (posts.length === 0) {
-    return (
-      <div className="container">
-        <div className="no-posts">No published posts yet. Check back soon!</div>
+        <div className="error">Error: {error}</div>
       </div>
     );
   }
 
   return (
     <div className="container">
-      <h2 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Latest Posts</h2>
-      <p style={{ color: '#666', marginBottom: '2rem' }}>
-        Discover our latest articles and stories
-      </p>
-
-      <div className="posts-grid">
-        {posts.map((post) => (
-          <div
-            key={post.id}
-            className="post-card"
-            onClick={() => navigate(`/posts/${post.id}`)}
-          >
-            <h2>{post.title}</h2>
-            <div className="post-meta">
-              By {post.user.username} • {formatDate(post.createdAt)}
-            </div>
-            <p className="post-excerpt">{getExcerpt(post.content)}</p>
-          </div>
-        ))}
-      </div>
+      <h2 className="page-title">Latest Posts</h2>
+      
+      {posts.length === 0 ? (
+        <p className="no-posts">No posts available yet.</p>
+      ) : (
+        <div className="posts-grid">
+          {posts.map((post) => (
+            <article key={post.id} className="post-card">
+              <Link to={`/posts/${post.id}`} className="post-link">
+                <h3 className="post-title">{post.title}</h3>
+                <div className="post-meta">
+                  <span className="post-author">By {post.author.username}</span>
+                  <span className="post-date">
+                    {new Date(post.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </span>
+                </div>
+                <p className="post-excerpt">
+                  {post.content.substring(0, 150)}
+                  {post.content.length > 150 ? '...' : ''}
+                </p>
+                {post._count && (
+                  <div className="post-comments-count">
+                    {post._count.comments} {post._count.comments === 1 ? 'comment' : 'comments'}
+                  </div>
+                )}
+              </Link>
+            </article>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

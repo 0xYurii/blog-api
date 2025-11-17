@@ -1,5 +1,6 @@
-// PostPage - Display single post with comments
-import { useState, useEffect } from 'react';
+// PostPage - displays a single post with comments
+
+import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPost, getComments, createComment } from '../services/api';
 import type { Post, Comment, CreateCommentData } from '../types';
@@ -10,203 +11,195 @@ const PostPage = () => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Comment form state
+  const [commentContent, setCommentContent] = useState('');
+  const [authorName, setAuthorName] = useState('');
+  const [authorEmail, setAuthorEmail] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
-  // Check if user is authenticated
-  const isAuthenticated = !!localStorage.getItem('token');
-
-  // Form state
-  const [formData, setFormData] = useState({
-    content: '',
-    username: '',
-    email: '',
-  });
+  // Check if user is logged in
+  const isLoggedIn = !!localStorage.getItem('token');
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPostAndComments = async () => {
       if (!id) return;
-
+      
       try {
         setLoading(true);
-        const [postData, commentsData] = await Promise.all([
-          getPost(Number(id)),
-          getComments(Number(id)),
-        ]);
+        const postData = await getPost(parseInt(id));
+        const commentsData = await getComments(parseInt(id));
         setPost(postData);
         setComments(commentsData);
-        setError(null);
       } catch (err) {
-        setError('Failed to load post. Please try again later.');
-        console.error('Error fetching post:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load post');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
+    fetchPostAndComments();
   }, [id]);
-
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id || !formData.content.trim()) return;
+    
+    if (!id || !commentContent.trim()) {
+      setCommentError('Comment content is required');
+      return;
+    }
+
+    // Validate anonymous comment fields
+    if (!isLoggedIn && (!authorName.trim() || !authorEmail.trim())) {
+      setCommentError('Name and email are required for anonymous comments');
+      return;
+    }
 
     try {
       setSubmitting(true);
+      setCommentError(null);
+
       const commentData: CreateCommentData = {
-        content: formData.content,
+        content: commentContent,
       };
 
-      // Add username and email only if user is not authenticated
-      if (!isAuthenticated) {
-        if (!formData.username.trim() || !formData.email.trim()) {
-          alert('Please provide your username and email');
-          return;
-        }
-        commentData.username = formData.username;
-        commentData.email = formData.email;
+      // Add anonymous user fields if not logged in
+      if (!isLoggedIn) {
+        commentData.authorName = authorName;
+        commentData.authorEmail = authorEmail;
       }
 
-      const newComment = await createComment(Number(id), commentData);
+      const newComment = await createComment(parseInt(id), commentData);
       setComments([...comments, newComment]);
-      setFormData({ content: '', username: '', email: '' });
-      setError(null);
+      
+      // Reset form
+      setCommentContent('');
+      setAuthorName('');
+      setAuthorEmail('');
     } catch (err) {
-      setError('Failed to post comment. Please try again.');
-      console.error('Error posting comment:', err);
+      setCommentError(err instanceof Error ? err.message : 'Failed to submit comment');
     } finally {
       setSubmitting(false);
     }
   };
 
   if (loading) {
-    return <div className="loading">Loading post...</div>;
-  }
-
-  if (error && !post) {
     return (
       <div className="container">
-        <div className="error">{error}</div>
-        <Link to="/">← Back to Home</Link>
+        <div className="loading">Loading post...</div>
       </div>
     );
   }
 
-  if (!post) {
+  if (error || !post) {
     return (
       <div className="container">
-        <div className="error">Post not found</div>
-        <Link to="/">← Back to Home</Link>
+        <div className="error">Error: {error || 'Post not found'}</div>
+        <Link to="/" className="back-link">← Back to Home</Link>
       </div>
     );
   }
 
   return (
-    <div className="post-page">
-      <Link to="/" style={{ marginBottom: '2rem', display: 'inline-block' }}>
-        ← Back to Home
-      </Link>
-
-      <div className="post-header">
-        <h1 className="post-title">{post.title}</h1>
+    <div className="container">
+      <Link to="/" className="back-link">← Back to Home</Link>
+      
+      <article className="post-detail">
+        <h2 className="post-detail-title">{post.title}</h2>
         <div className="post-meta">
-          By {post.user.username} • {formatDate(post.createdAt)}
+          <span className="post-author">By {post.author.username}</span>
+          <span className="post-date">
+            {new Date(post.createdAt).toLocaleDateString('en-US', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })}
+          </span>
         </div>
-      </div>
+        <div className="post-content">
+          {post.content.split('\n').map((paragraph, index) => (
+            <p key={index}>{paragraph}</p>
+          ))}
+        </div>
+      </article>
 
-      <div className="post-content">{post.content || 'No content available.'}</div>
-
-      {/* Comments Section */}
-      <div className="comments-section">
-        <h3>
+      <section className="comments-section">
+        <h3 className="comments-title">
           Comments ({comments.length})
         </h3>
 
-        {error && <div className="error">{error}</div>}
-
-        {comments.length === 0 ? (
-          <p style={{ color: '#666', marginBottom: '2rem' }}>
-            No comments yet. Be the first to comment!
-          </p>
-        ) : (
-          <div style={{ marginBottom: '2rem' }}>
-            {comments.map((comment) => (
-              <div key={comment.id} className="comment">
-                <div className="comment-author">
-                  {comment.user?.username || comment.username || 'Anonymous'}
-                </div>
-                <div className="comment-date">{formatDate(comment.createdAt)}</div>
-                <div className="comment-content">{comment.content}</div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Comment Form */}
         <form onSubmit={handleSubmitComment} className="comment-form">
-          <h4>Leave a Comment</h4>
-
-          {!isAuthenticated && (
+          {!isLoggedIn && (
             <>
               <div className="form-group">
-                <label htmlFor="username">Username *</label>
+                <label htmlFor="authorName">Your Name</label>
                 <input
                   type="text"
-                  id="username"
-                  value={formData.username}
-                  onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
-                  }
-                  required={!isAuthenticated}
-                  disabled={submitting}
+                  id="authorName"
+                  value={authorName}
+                  onChange={(e) => setAuthorName(e.target.value)}
+                  required
+                  placeholder="Enter your name"
                 />
               </div>
-
               <div className="form-group">
-                <label htmlFor="email">Email *</label>
+                <label htmlFor="authorEmail">Your Email</label>
                 <input
                   type="email"
-                  id="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  required={!isAuthenticated}
-                  disabled={submitting}
+                  id="authorEmail"
+                  value={authorEmail}
+                  onChange={(e) => setAuthorEmail(e.target.value)}
+                  required
+                  placeholder="your.email@example.com"
                 />
               </div>
             </>
           )}
-
+          
           <div className="form-group">
-            <label htmlFor="content">Comment *</label>
+            <label htmlFor="commentContent">Your Comment</label>
             <textarea
-              id="content"
-              value={formData.content}
-              onChange={(e) =>
-                setFormData({ ...formData, content: e.target.value })
-              }
+              id="commentContent"
+              value={commentContent}
+              onChange={(e) => setCommentContent(e.target.value)}
               required
-              disabled={submitting}
-              placeholder="Share your thoughts..."
+              rows={4}
+              placeholder="Write your comment here..."
             />
           </div>
 
-          <button type="submit" className="btn btn-primary" disabled={submitting}>
+          {commentError && <div className="error">{commentError}</div>}
+
+          <button type="submit" disabled={submitting} className="btn btn-primary">
             {submitting ? 'Posting...' : 'Post Comment'}
           </button>
         </form>
-      </div>
+
+        <div className="comments-list">
+          {comments.length === 0 ? (
+            <p className="no-comments">No comments yet. Be the first to comment!</p>
+          ) : (
+            comments.map((comment) => (
+              <div key={comment.id} className="comment">
+                <div className="comment-header">
+                  <strong className="comment-author">
+                    {comment.user ? comment.user.username : comment.authorName}
+                  </strong>
+                  <span className="comment-date">
+                    {new Date(comment.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </span>
+                </div>
+                <p className="comment-content">{comment.content}</p>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
     </div>
   );
 };

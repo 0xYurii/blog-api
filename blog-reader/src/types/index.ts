@@ -1,4 +1,5 @@
-// Type definitions for blog-reader
+// Type definitions for the blog API
+
 export interface Post {
   id: number;
   title: string;
@@ -6,8 +7,11 @@ export interface Post {
   published: boolean;
   authorId: number;
   createdAt: string;
-  user: {
+  updatedAt: string;
+  author: {
+    id: number;
     username: string;
+    email: string;
   };
   _count?: {
     comments: number;
@@ -17,18 +21,19 @@ export interface Post {
 export interface Comment {
   id: number;
   content: string;
-  username: string | null;
-  email: string | null;
-  userId: number | null;
+  authorName: string | null;
+  authorEmail: string | null;
   postId: number;
+  userId: number | null;
   createdAt: string;
   user?: {
+    id: number;
     username: string;
-  } | null;
+  };
 }
 
 export interface CreateCommentData {
   content: string;
-  username?: string;
-  email?: string;
+  authorName?: string;
+  authorEmail?: string;
 }
