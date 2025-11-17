@@ -248,6 +248,8 @@ export const togglePublish = async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.userId!;
 
+    console.log("Toggle publish - userId from token:", userId);
+
     const postId = parseInt(id!);
     if (isNaN(postId)) {
       return res.status(400).json({ error: "Invalid post ID" });
@@ -258,12 +260,18 @@ export const togglePublish = async (req: Request, res: Response) => {
       select: { id: true, authorId: true, published: true },
     });
 
+    console.log("Toggle publish - post authorId:", publishedPost?.authorId);
+
     if (!publishedPost) {
       return res.status(404).json({ error: "Post not found" });
     }
 
     if (userId !== publishedPost.authorId) {
-      return res.status(403).json({ message: "Not authorized" });
+      console.log("Authorization failed - userId:", userId, "authorId:", publishedPost.authorId);
+      return res.status(403).json({ 
+        error: "Not authorized",
+        message: `User ${userId} is not authorized to modify post owned by ${publishedPost.authorId}`
+      });
     }
 
     const updatedPost = await prisma.post.update({
