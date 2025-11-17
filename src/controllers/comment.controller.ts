@@ -93,7 +93,7 @@ export const deleteComment = async (req: Request, res: Response) => {
 
     const commentId = parseInt(id!);
     if (isNaN(commentId)) {
-      return res.status(400).json({ error: "Invalid post ID" });
+      return res.status(400).json({ error: "Invalid comment ID" });
     }
 
     const comment = await prisma.comment.findUnique({
@@ -105,11 +105,15 @@ export const deleteComment = async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Comment not found" });
     }
 
-    if (comment.userId !== userId && comment.post.authorId !== userId) {
-      return res.status(403).json({ message: "Not authorized" });
+    // Check authorization: user owns comment OR user owns the post
+    const isCommentAuthor = comment.userId && comment.userId === userId;
+    const isPostAuthor = comment.post.authorId === userId;
+
+    if (!isCommentAuthor && !isPostAuthor) {
+      return res.status(403).json({ error: "Not authorized" });
     }
 
-    const deleteComment = await prisma.comment.delete({
+    await prisma.comment.delete({
       where: { id: commentId },
     });
     res.json({ message: "Comment deleted successfully" });
