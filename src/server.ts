@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import route from "./routes/auth.routes";
 import postRoutes from "./routes/post.routes";
+import commentRoutes from "./routes/comment.routes";
 
 dotenv.config();
 
@@ -19,6 +20,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use("/api/auth", route);
 // Posts routes
 app.use("/api/posts", postRoutes);
+
+//comment routes
+app.use("/api", commentRoutes);
 
 //test route
 app.get("/", (req: Request, res: Response) => {

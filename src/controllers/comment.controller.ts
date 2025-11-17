@@ -1,0 +1,119 @@
+import { Request, Response } from "express";
+import prisma from "../db";
+
+// Get all comments for a specific post (PUBLIC)
+export const getPostComments = async (req: Request, res: Response) => {
+  try {
+    const { postId } = req.params;
+
+    const postIdNum = parseInt(postId!);
+    if (isNaN(postIdNum)) {
+      return res.status(400).json({ error: "Invalid post ID" });
+    }
+
+    // Check if post exists
+    const post = await prisma.post.findUnique({
+      where: { id: postIdNum },
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    // Get comments
+    const comments = await prisma.comment.findMany({
+      where: { postId: postIdNum },
+      include: {
+        user: {
+          select: { username: true },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(comments);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch comments" });
+  }
+};
+
+// Create comment (ANONYMOUS OR AUTHENTICATED)
+export const createComment = async (req: Request, res: Response) => {
+  try {
+    const { postId } = req.params;
+    const { content, username, email } = req.body;
+    const userId = req.userId; // May be undefined if not authenticated
+
+    const postIdNum = parseInt(postId!);
+    if (isNaN(postIdNum)) {
+      return res.status(400).json({ error: "Invalid post ID" });
+    }
+
+    // Check if post exists
+    const post = await prisma.post.findUnique({
+      where: { id: postIdNum },
+    });
+
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    // Validate: either authenticated OR provide username/email
+    if (!userId && (!username || !email)) {
+      return res.status(400).json({
+        error: "Must be logged in or provide username and email",
+      });
+    }
+
+    // Create comment
+    const comment = await prisma.comment.create({
+      data: {
+        content,
+        postId: postIdNum,
+        userId: userId || null,
+        username: !userId ? username : null,
+        email: !userId ? email : null,
+      },
+      include: {
+        user: userId ? { select: { username: true } } : false,
+      },
+    });
+
+    res.status(201).json(comment);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create comment" });
+  }
+};
+
+// Delete comment (AUTHENTICATED - author or post owner)
+export const deleteComment = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId!;
+
+    const commentId = parseInt(id!);
+    if (isNaN(commentId)) {
+      return res.status(400).json({ error: "Invalid post ID" });
+    }
+
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      include: { post: { select: { authorId: true } } },
+    });
+
+    if (!comment) {
+      return res.status(404).json({ error: "Comment not found" });
+    }
+
+    if (comment.userId !== userId && comment.post.authorId !== userId) {
+      return res.status(403).json({ message: "Not authorized" });
+    }
+
+    const deleteComment = await prisma.comment.delete({
+      where: { id: commentId },
+    });
+    res.json({ message: "Comment deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete comment" });
+  }
+};
