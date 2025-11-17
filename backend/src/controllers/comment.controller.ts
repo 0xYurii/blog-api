@@ -41,8 +41,20 @@ export const getPostComments = async (req: Request, res: Response) => {
 export const createComment = async (req: Request, res: Response) => {
   try {
     const { postId } = req.params;
-    const { content, username, email } = req.body;
+    const { content, username, email, authorName, authorEmail } = req.body;
     const userId = req.userId; // May be undefined if not authenticated
+
+    // Support both 'username'/'email' and 'authorName'/'authorEmail' field names
+    const finalUsername = username || authorName;
+    const finalEmail = email || authorEmail;
+
+    console.log("Create comment request:", { 
+      postId, 
+      content, 
+      username: finalUsername, 
+      email: finalEmail, 
+      userId 
+    });
 
     const postIdNum = parseInt(postId!);
     if (isNaN(postIdNum)) {
@@ -55,11 +67,13 @@ export const createComment = async (req: Request, res: Response) => {
     });
 
     if (!post) {
+      console.log("Post not found:", postIdNum);
       return res.status(404).json({ error: "Post not found" });
     }
 
     // Validate: either authenticated OR provide username/email
-    if (!userId && (!username || !email)) {
+    if (!userId && (!finalUsername || !finalEmail)) {
+      console.log("Validation failed - no userId and missing username/email");
       return res.status(400).json({
         error: "Must be logged in or provide username and email",
       });
@@ -71,16 +85,18 @@ export const createComment = async (req: Request, res: Response) => {
         content,
         postId: postIdNum,
         userId: userId || null,
-        username: !userId ? username : null,
-        email: !userId ? email : null,
+        username: !userId ? finalUsername : null,
+        email: !userId ? finalEmail : null,
       },
       include: {
         user: userId ? { select: { username: true } } : false,
       },
     });
 
+    console.log("Comment created successfully:", comment.id);
     res.status(201).json(comment);
   } catch (error) {
+    console.error("Error creating comment:", error);
     res.status(500).json({ error: "Failed to create comment" });
   }
 };
