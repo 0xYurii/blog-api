@@ -1,8 +1,110 @@
 // API service for blog-reader
 
-import type { Post, Comment, CreateCommentData } from '../types';
+import type { 
+  Post, 
+  Comment, 
+  CreateCommentData,
+  LoginCredentials,
+  SignupCredentials,
+  LoginResponse,
+  User
+} from '../types';
 
 const API_URL = 'http://localhost:3000/api';
+
+/**
+ * Get authentication headers with token
+ */
+const getAuthHeaders = (): HeadersInit => {
+  const token = localStorage.getItem('token');
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`,
+  };
+};
+
+/**
+ * Signup new user and store token
+ */
+export const signup = async (credentials: SignupCredentials): Promise<LoginResponse> => {
+  const response = await fetch(`${API_URL}/auth/signup`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(credentials),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Signup failed');
+  }
+
+  const data = await response.json();
+  
+  // Store token in localStorage
+  if (data.token) {
+    localStorage.setItem('token', data.token);
+  }
+
+  return data;
+};
+
+/**
+ * Login user and store token
+ */
+export const login = async (credentials: LoginCredentials): Promise<LoginResponse> => {
+  const response = await fetch(`${API_URL}/auth/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(credentials),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Login failed');
+  }
+
+  const data = await response.json();
+  
+  // Store token in localStorage
+  if (data.token) {
+    localStorage.setItem('token', data.token);
+  }
+
+  return data;
+};
+
+/**
+ * Logout user (clear token)
+ */
+export const logout = (): void => {
+  localStorage.removeItem('token');
+};
+
+/**
+ * Check if user is authenticated
+ */
+export const isAuthenticated = (): boolean => {
+  return !!localStorage.getItem('token');
+};
+
+/**
+ * Get current user profile
+ */
+export const getCurrentUser = async (): Promise<User> => {
+  const response = await fetch(`${API_URL}/auth/me`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch user profile');
+  }
+
+  return response.json();
+};
 
 /**
  * Fetch all published posts

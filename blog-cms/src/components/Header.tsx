@@ -23,12 +23,16 @@ const Header = () => {
             <>
               <Link to="/dashboard">Dashboard</Link>
               <Link to="/posts/new">New Post</Link>
+              <Link to="/profile">Profile</Link>
               <button onClick={handleLogout} className="logout-btn">
                 Logout
               </button>
             </>
           ) : (
-            <Link to="/login">Login</Link>
+            <>
+              <Link to="/login">Login</Link>
+              <Link to="/signup">Sign Up</Link>
+            </>
           )}
         </nav>
       </div>

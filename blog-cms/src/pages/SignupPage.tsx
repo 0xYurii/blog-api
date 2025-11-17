@@ -1,14 +1,16 @@
-// Login Page
+// Signup Page
 
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { login } from '../services/api';
+import { signup } from '../services/api';
 
-const LoginPage = () => {
+const SignupPage = () => {
   const navigate = useNavigate();
+  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -16,17 +18,27 @@ const LoginPage = () => {
     e.preventDefault();
     setError(null);
 
-    if (!email || !password) {
+    if (!username || !email || !password || !confirmPassword) {
       setError('Please fill in all fields');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
 
     try {
       setLoading(true);
-      await login({ email, password });
+      await signup({ username, email, password });
       navigate('/dashboard');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Signup failed');
     } finally {
       setLoading(false);
     }
@@ -35,8 +47,21 @@ const LoginPage = () => {
   return (
     <div className="login-container">
       <div className="login-box">
-        <h2>Login to CMS</h2>
+        <h2>Create Account</h2>
         <form onSubmit={handleSubmit} className="login-form">
+          <div className="form-group">
+            <label htmlFor="username">Username</label>
+            <input
+              type="text"
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Choose a username"
+              required
+              autoComplete="username"
+            />
+          </div>
+
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
@@ -57,25 +82,38 @@ const LoginPage = () => {
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder="At least 6 characters"
               required
-              autoComplete="current-password"
+              autoComplete="new-password"
+            />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="confirmPassword">Confirm Password</label>
+            <input
+              type="password"
+              id="confirmPassword"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Re-enter your password"
+              required
+              autoComplete="new-password"
             />
           </div>
 
           {error && <div className="error">{error}</div>}
 
           <button type="submit" disabled={loading} className="btn btn-primary btn-block">
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
 
         <div className="auth-footer">
-          Don't have an account? <Link to="/signup">Sign up here</Link>
+          Already have an account? <Link to="/login">Login here</Link>
         </div>
       </div>
     </div>
   );
 };
 
-export default LoginPage;
+export default SignupPage;

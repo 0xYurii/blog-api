@@ -1,12 +1,14 @@
 // API service for blog-cms with authentication
 
 import type { 
-  LoginCredentials, 
+  LoginCredentials,
+  SignupCredentials,
   LoginResponse, 
   Post, 
   CreatePostData, 
   UpdatePostData,
-  Comment 
+  Comment,
+  User
 } from '../types';
 
 const API_URL = 'http://localhost:3000/api';
@@ -20,6 +22,33 @@ const getAuthHeaders = (): HeadersInit => {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
   };
+};
+
+/**
+ * Signup new user and store token
+ */
+export const signup = async (credentials: SignupCredentials): Promise<LoginResponse> => {
+  const response = await fetch(`${API_URL}/auth/signup`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(credentials),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.message || 'Signup failed');
+  }
+
+  const data = await response.json();
+  
+  // Store token in localStorage
+  if (data.token) {
+    localStorage.setItem('token', data.token);
+  }
+
+  return data;
 };
 
 /**
@@ -61,6 +90,21 @@ export const logout = (): void => {
  */
 export const isAuthenticated = (): boolean => {
   return !!localStorage.getItem('token');
+};
+
+/**
+ * Get current user profile
+ */
+export const getCurrentUser = async (): Promise<User> => {
+  const response = await fetch(`${API_URL}/auth/me`, {
+    headers: getAuthHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch user profile');
+  }
+
+  return response.json();
 };
 
 /**
