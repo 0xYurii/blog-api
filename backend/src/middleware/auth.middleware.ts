@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
+import { asyncHandler } from "../utils/asyncHandler";
 
 // Extend Express Request type to include user
 declare global {
@@ -10,12 +11,8 @@ declare global {
   }
 }
 
-export const authenticateToken = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
+export const authenticateToken = asyncHandler(
+  (req: Request, res: Response, next: NextFunction) => {
     // Get token from Authorization header
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1]; // Bearer TOKEN
@@ -30,18 +27,12 @@ export const authenticateToken = (
     };
     req.userId = decoded.userId;
     next();
-  } catch (error) {
-    res.status(403).json({ error: "Invalid or expired token" });
-  }
-};
+  },
+);
 
 // Optional authentication - adds userId to request if token is present
-export const optionalAuth = (
-  req: Request,
-  res: Response,
-  next: NextFunction,
-) => {
-  try {
+export const optionalAuth = asyncHandler(
+  (req: Request, res: Response, next: NextFunction) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
 
@@ -52,8 +43,5 @@ export const optionalAuth = (
       req.userId = decoded.userId;
     }
     next();
-  } catch (error) {
-    // If token is invalid, continue without userId
-    next();
-  }
-};
+  },
+);

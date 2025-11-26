@@ -1,95 +1,88 @@
 import { Request, Response } from "express";
 import prisma from "../db";
+import { asyncHandler } from "../utils/asyncHandler";
 
-export const createPost = async (req: Request, res: Response) => {
-  try {
-    const { title, content } = req.body;
-    const authorId = req.userId!; // From auth middleware
+export const createPost = asyncHandler(async (req: Request, res: Response) => {
+  const { title, content } = req.body;
+  const authorId = req.userId!; // From auth middleware
 
-    const post = await prisma.post.create({
-      data: {
-        title,
-        content,
-        authorId,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-        _count: {
-          select: {
-            comments: true,
-          },
+  const post = await prisma.post.create({
+    data: {
+      title,
+      content,
+      authorId,
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          email: true,
         },
       },
-    });
-
-    // Transform response to match frontend expectations
-    const response = {
-      id: post.id,
-      title: post.title,
-      content: post.content,
-      published: post.published,
-      authorId: post.authorId,
-      createdAt: post.createdAt,
-      author: post.user,
-      _count: post._count,
-    };
-
-    res.status(201).json(response);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to create post" });
-  }
-};
-
-export const getAllPosts = async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId; // From auth middleware (if authenticated)
-
-    // If authenticated, return all posts; otherwise only published
-    const posts = await prisma.post.findMany({
-      where: userId ? {} : { published: true },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-        _count: {
-          select: {
-            comments: true,
-          },
+      _count: {
+        select: {
+          comments: true,
         },
       },
-      orderBy: { createdAt: "desc" },
-    });
+    },
+  });
 
-    // Transform response to match frontend expectations
-    const response = posts.map((post) => ({
-      id: post.id,
-      title: post.title,
-      content: post.content,
-      published: post.published,
-      authorId: post.authorId,
-      createdAt: post.createdAt,
-      author: post.user,
-      _count: post._count,
-    }));
+  // Transform response to match frontend expectations
+  const response = {
+    id: post.id,
+    title: post.title,
+    content: post.content,
+    published: post.published,
+    authorId: post.authorId,
+    createdAt: post.createdAt,
+    author: post.user,
+    _count: post._count,
+  };
 
-    res.json(response);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch posts" });
-  }
-};
+  res.status(201).json(response);
+});
 
-export const getSinglePost = async (req: Request, res: Response) => {
-  try {
+export const getAllPosts = asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId; // From auth middleware (if authenticated)
+
+  // If authenticated, return all posts; otherwise only published
+  const posts = await prisma.post.findMany({
+    where: userId ? {} : { published: true },
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          email: true,
+        },
+      },
+      _count: {
+        select: {
+          comments: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  // Transform response to match frontend expectations
+  const response = posts.map((post) => ({
+    id: post.id,
+    title: post.title,
+    content: post.content,
+    published: post.published,
+    authorId: post.authorId,
+    createdAt: post.createdAt,
+    author: post.user,
+    _count: post._count,
+  }));
+
+  res.json(response);
+});
+
+export const getSinglePost = asyncHandler(
+  async (req: Request, res: Response) => {
     const { id } = req.params;
 
     const postId = parseInt(id!);
@@ -110,9 +103,9 @@ export const getSinglePost = async (req: Request, res: Response) => {
         comments: {
           include: {
             user: {
-              select: { 
+              select: {
                 id: true,
-                username: true 
+                username: true,
               },
             },
           },
@@ -144,107 +137,97 @@ export const getSinglePost = async (req: Request, res: Response) => {
     };
 
     res.json(response);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch post" });
+  },
+);
+
+export const updatePost = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { title, content } = req.body;
+  const userId = req.userId!;
+
+  const postId = parseInt(id!);
+  if (isNaN(postId)) {
+    return res.status(400).json({ error: "Invalid post ID" });
   }
-};
 
-export const updatePost = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const { title, content } = req.body;
-    const userId = req.userId!;
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { id: true, authorId: true },
+  });
 
-    const postId = parseInt(id!);
-    if (isNaN(postId)) {
-      return res.status(400).json({ error: "Invalid post ID" });
-    }
-
-    const post = await prisma.post.findUnique({
-      where: { id: postId },
-      select: { id: true, authorId: true },
-    });
-
-    if (!post) {
-      return res.status(404).json({ error: "Post not found" });
-    }
-    if (userId !== post.authorId) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-    const updatedPost = await prisma.post.update({
-      where: { id: postId },
-      data: {
-        title,
-        content,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            email: true,
-          },
-        },
-        _count: {
-          select: {
-            comments: true,
-          },
+  if (!post) {
+    return res.status(404).json({ error: "Post not found" });
+  }
+  if (userId !== post.authorId) {
+    return res.status(403).json({ message: "Not authorized" });
+  }
+  const updatedPost = await prisma.post.update({
+    where: { id: postId },
+    data: {
+      title,
+      content,
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+          email: true,
         },
       },
-    });
+      _count: {
+        select: {
+          comments: true,
+        },
+      },
+    },
+  });
 
-    // Transform response to match frontend expectations
-    const response = {
-      id: updatedPost.id,
-      title: updatedPost.title,
-      content: updatedPost.content,
-      published: updatedPost.published,
-      authorId: updatedPost.authorId,
-      createdAt: updatedPost.createdAt,
-      author: updatedPost.user,
-      _count: updatedPost._count,
-    };
+  // Transform response to match frontend expectations
+  const response = {
+    id: updatedPost.id,
+    title: updatedPost.title,
+    content: updatedPost.content,
+    published: updatedPost.published,
+    authorId: updatedPost.authorId,
+    createdAt: updatedPost.createdAt,
+    author: updatedPost.user,
+    _count: updatedPost._count,
+  };
 
-    res.json(response);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to update post" });
+  res.json(response);
+});
+
+export const deletePost = asyncHandler(async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const userId = req.userId!;
+
+  const postId = parseInt(id!);
+  if (isNaN(postId)) {
+    return res.status(400).json({ error: "Invalid post ID" });
   }
-};
 
-export const deletePost = async (req: Request, res: Response) => {
-  try {
-    const { id } = req.params;
-    const userId = req.userId!;
-
-    const postId = parseInt(id!);
-    if (isNaN(postId)) {
-      return res.status(400).json({ error: "Invalid post ID" });
-    }
-
-    const post = await prisma.post.findUnique({
-      where: { id: postId },
-      select: { id: true, authorId: true },
-    });
-    if (!post) {
-      return res.status(404).json({ error: "Post not found" });
-    }
-
-    if (userId !== post.authorId) {
-      return res.status(403).json({ message: "Not authorized" });
-    }
-
-    const deletedPost = await prisma.post.delete({
-      where: { id: postId },
-    });
-
-    res.json({ message: "Post deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete post" });
+  const post = await prisma.post.findUnique({
+    where: { id: postId },
+    select: { id: true, authorId: true },
+  });
+  if (!post) {
+    return res.status(404).json({ error: "Post not found" });
   }
-};
 
-export const togglePublish = async (req: Request, res: Response) => {
-  try {
+  if (userId !== post.authorId) {
+    return res.status(403).json({ message: "Not authorized" });
+  }
+
+  const deletedPost = await prisma.post.delete({
+    where: { id: postId },
+  });
+
+  res.json({ message: "Post deleted successfully" });
+});
+
+export const togglePublish = asyncHandler(
+  async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.userId!;
 
@@ -267,10 +250,15 @@ export const togglePublish = async (req: Request, res: Response) => {
     }
 
     if (userId !== publishedPost.authorId) {
-      console.log("Authorization failed - userId:", userId, "authorId:", publishedPost.authorId);
-      return res.status(403).json({ 
+      console.log(
+        "Authorization failed - userId:",
+        userId,
+        "authorId:",
+        publishedPost.authorId,
+      );
+      return res.status(403).json({
         error: "Not authorized",
-        message: `User ${userId} is not authorized to modify post owned by ${publishedPost.authorId}`
+        message: `User ${userId} is not authorized to modify post owned by ${publishedPost.authorId}`,
       });
     }
 
@@ -306,7 +294,5 @@ export const togglePublish = async (req: Request, res: Response) => {
     };
 
     res.json(response);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to toggle publish status" });
-  }
-};
+  },
+);

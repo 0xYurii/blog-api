@@ -1,9 +1,11 @@
 import { Request, Response } from "express";
 import prisma from "../db";
 
+import { asyncHandler } from "../utils/asyncHandler";
+
 // Get all comments for a specific post (PUBLIC)
-export const getPostComments = async (req: Request, res: Response) => {
-  try {
+export const getPostComments = asyncHandler(
+  async (req: Request, res: Response) => {
     const { postId } = req.params;
 
     const postIdNum = parseInt(postId!);
@@ -32,14 +34,12 @@ export const getPostComments = async (req: Request, res: Response) => {
     });
 
     res.json(comments);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch comments" });
-  }
-};
+  },
+);
 
 // Create comment (ANONYMOUS OR AUTHENTICATED)
-export const createComment = async (req: Request, res: Response) => {
-  try {
+export const createComment = asyncHandler(
+  async (req: Request, res: Response) => {
     const { postId } = req.params;
     const { content, username, email, authorName, authorEmail } = req.body;
     const userId = req.userId; // May be undefined if not authenticated
@@ -48,12 +48,12 @@ export const createComment = async (req: Request, res: Response) => {
     const finalUsername = username || authorName;
     const finalEmail = email || authorEmail;
 
-    console.log("Create comment request:", { 
-      postId, 
-      content, 
-      username: finalUsername, 
-      email: finalEmail, 
-      userId 
+    console.log("Create comment request:", {
+      postId,
+      content,
+      username: finalUsername,
+      email: finalEmail,
+      userId,
     });
 
     const postIdNum = parseInt(postId!);
@@ -95,15 +95,12 @@ export const createComment = async (req: Request, res: Response) => {
 
     console.log("Comment created successfully:", comment.id);
     res.status(201).json(comment);
-  } catch (error) {
-    console.error("Error creating comment:", error);
-    res.status(500).json({ error: "Failed to create comment" });
-  }
-};
+  },
+);
 
 // Delete comment (AUTHENTICATED - author or post owner)
-export const deleteComment = async (req: Request, res: Response) => {
-  try {
+export const deleteComment = asyncHandler(
+  async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.userId!;
 
@@ -133,7 +130,5 @@ export const deleteComment = async (req: Request, res: Response) => {
       where: { id: commentId },
     });
     res.json({ message: "Comment deleted successfully" });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to delete comment" });
-  }
-};
+  },
+);
